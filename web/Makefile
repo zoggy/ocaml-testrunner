@@ -22,105 +22,44 @@
 #                                                                               #
 #################################################################################
 
-include master.Makefile
+MKSTOG=mk-stog
+MKSTOG_OCAML_SESSION=mk-stog-ocaml-session
+STOG=./mystog
+STOG_OCAML_SESSION=./mystog-ocaml-session
+DEST_DIR=`pwd`/../../xtmpl-gh-pages
+BASE_URL_OPTION=
+STOG_OPTIONS=--stog-ocaml-session "$(STOG_OCAML_SESSION)  -I ../src" -d $(DEST_DIR) $(BASE_URL_OPTION)
+LESSC=lessc
+CP=cp -f
 
-# Compilation
-#############
+build:
+	$(MAKE) site
 
-all: src
+style.css: less/*.less
+	$(LESSC) less/style.less > $@
 
-src: dummy
-	cd src && $(MAKE) all
+site: style.css
+	$(STOG) $(STOG_OPTIONS) .
+	$(CP) style.css $(DEST_DIR)/style.css
 
-re : depend clean all
+ocamldoc:
+	rm -f refdoc/*html ref-doc/style.css
+	(cd .. && make docstog)
 
-# Documentation :
-#################
-doc: dummy
-	cd src && $(MAKE) doc
+test:
+	$(MAKE) BASE_URL_OPTION="--local" site
 
-# myself
+stog:$(STOG) $(STOG_OCAML_SESSION)
+.PHONY:$(STOG) $(STOG_OCAML_SESSION)
+$(STOG):
+	$(MKSTOG) -o $@ -package stog.disqus -linkall
 
-master.Makefile: master.Makefile.in config.status \
-	src/META.in \
-	./config.status
+$(STOG_OCAML_SESSION):
+	$(MKSTOG_OCAML_SESSION) -o $@
 
-config.status: configure
-	./config.status --recheck
-
-configure: configure.ac
-	autoconf
-
-# backup, clean and depend :
-############################
-
-distclean: clean
-	$(RM) master.Makefile src/META
-	$(RM) -fr config.status autom4te.cache config.log ocaml_config.sh
-
-
-clean:: dummy
-	$(RM) *~ \#*\#
-	cd src && $(MAKE) clean
-
-depend: dummy
-	cd src && $(MAKE) depend
-
-dummy:
-
-# Web site:
-###########
-website:
-	(cd doc && $(MAKE) DEST_DIR=`pwd`/../../testrunner-pages)
-
-# archive :
-###########
-archive:
-	git archive --prefix=stog-$(VERSION)/ HEAD | gzip > ../testrunner-pages/testrunner-$(VERSION).tar.gz
-
-###########
-# Headers
-###########
-HEADFILES=configure.ac configure \
-	master.Makefile.in Makefile src/Makefile web/Makefile \
-	checkocaml.ml src/*.ml src/*.mli
-
-headers: dummy
-	headache -h header -c .headache_config $(HEADFILES) \
-	`ls $(HEADFILES)`
-
-noheaders: dummy
-	headache -r -c .headache_config $(HEADFILES) \
-	`ls $(HEADFILES)`
+clean:
+	rm -fr .stog/cache
 
 
-############
 
-#webdoc:
-#	(cd src && $(MAKE) docstog)
-#	cd web && $(MAKE)
-
-
-#################
-# installation
-#################
-
-install:
-	cd src && $(MAKE) install
-install-lib: dummy
-	cd src && $(MAKE) install-lib
-install-bin: dummy
-	cd src && $(MAKE) install-bin
-
-uninstall: dummy
-	cd src && $(MAKE) uninstall
-uninstall-lib: dummy
-	cd src && $(MAKE) uninstall-lib
-uninstall-bin: dummy
-	cd src && $(MAKE) uninstall-bin
-
-###########################
-# additional dependencies
-###########################
-
-# DO NOT DELETE
+	
