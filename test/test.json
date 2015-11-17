@@ -1,0 +1,27 @@
+{ _type: "square",
+  _id: "main",
+  foo: 1,
+  _include: "test1.json",
+  _include: "test2.json",
+  _list: [
+    { _title: "test with 1",
+      x: 1,
+      result: 1
+    },
+    { _title: "test with 2",
+      _id: "x2",
+      x: 2,
+      result: 4
+    },
+    { _id: "section2",
+      _title: "Higher values of x",
+      _list: [
+      {
+        _id: "x4",
+        _title: "x = 4",
+        x: 4
+      }
+     ]
+    }
+  ]
+}
