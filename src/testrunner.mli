@@ -22,6 +22,8 @@
 (*                                                                               *)
 (*********************************************************************************)
 
+(** Testrunner library. *)
+
 module SMap : Map.S with type key = string
 module J = Yojson.Safe
 module Error :

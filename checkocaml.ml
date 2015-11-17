@@ -899,7 +899,7 @@ let _ = !print "\n### checking required tools and libraries ###\n"
 
 let _ = check_ocamlfind_package conf ~min_version: [0;13] "xtmpl";;
 let _ = check_ocamlfind_package conf ~min_version: [1;1;8] "yojson";;
-let _ = check_ocamlfind_package conf ~min_version: [1;4;1] "re";;
+let _ = check_ocamlfind_package conf ~min_version: [1;4;1] "re.str";;
 
 let _ = !print "\n###\n"
 

@@ -50,7 +50,7 @@ fi
 SHARE_DIR=$datadir
 
 
-PACKAGES=yojson,re,xtmpl
+PACKAGES=yojson,re.str,xtmpl
 
 #############################
 # substitutions to perform

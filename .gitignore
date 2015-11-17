@@ -7,17 +7,6 @@
 *.cmx
 *.cmxs
 *.cmxa
-
-# ocamlbuild working directory
-_build/
-
-# ocamlbuild targets
-*.byte
-*.native
-
-# oasis generated files
-setup.data
-setup.log
 configure.lineno
 web/.stog/cache
 .chamo*
@@ -27,3 +16,4 @@ config.log
 config.status
 master.Makefile
 ocaml_config.sh
+
