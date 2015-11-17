@@ -1,0 +1,8 @@
+version = "@VERSION@"
+description = "Test framework"
+requires = "@PACKAGES@"
+archive(byte) = "testrunner.cma"
+archive(native) = "testrunner.cmxa"
+archive(plugin,byte) = "testrunner.cma"
+archive(plugin,native) = "testrunner.cmxs"
+

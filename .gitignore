@@ -18,3 +18,12 @@ _build/
 # oasis generated files
 setup.data
 setup.log
+configure.lineno
+web/.stog/cache
+.chamo*
+doc-output
+autom4te.cache
+config.log
+config.status
+master.Makefile
+ocaml_config.sh
