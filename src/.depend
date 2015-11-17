@@ -1,3 +1,5 @@
+testrunner_main.cmo : testrunner.cmi
+testrunner_main.cmx : testrunner.cmx
 testrunner.cmo : testrunner.cmi
 testrunner.cmx : testrunner.cmi
 testrunner.cmi :

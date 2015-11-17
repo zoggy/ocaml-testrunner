@@ -305,7 +305,7 @@ module Report =
         count.ko total pct_fail
         count.err total pct_err
   end
-
+(*
 let () =
   try
     let buggy_square x = if x < 3 then x * x else x * 2 in
@@ -334,4 +334,4 @@ let () =
   with
     Error.Error e ->
       prerr_endline (Error.to_string e); exit 1
-
+*)
