@@ -142,6 +142,7 @@ install-lib:
 	@$(OCAMLFIND) install testrunner META \
 		$(LIB_CMIFILES) $(LIB_CMXFILES) $(LIB_CMXFILES:.cmx=.o) \
 		$(LIB_BYTE) $(LIB) $(LIB:.cmxa=.a) $(LIB_CMXS) \
+		$(LIB_CMXFILES:.cmx=.mli) \
 		testrunner_main.cm* testrunner_main.o
 
 install-share:
@@ -153,10 +154,10 @@ install-bin:
 uninstall: uninstall-lib uninstall-bin
 
 uninstall-lib:
-	@$(OCAMLFIND) remove stog
+	@$(OCAMLFIND) remove testrunner
 
 uninstall-bin:
-	for i in $(MAIN) $(MAIN_BYTE)	$(MK_TR) $(MK_TR_BYTE) \
+	for i in $(MAIN) $(MAIN_BYTE)	$(MK_TR) $(MK_TR_BYTE) ;\
 		do $(RM) `dirname \`which $(OCAMLC)\``/$$i; done
 
 #####
