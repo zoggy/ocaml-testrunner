@@ -29,11 +29,12 @@ PBYTE=#p -p a
 
 OF_FLAGS=-package $(PACKAGES)
 
-COMPFLAGS=-I +ocamldoc -annot -rectypes -g -safe-string #-warn-error A #-dsource #-w +K
+COMPFLAGS=-I +ocamldoc -annot -rectypes -g -safe-string -annot #-warn-error A #-dsource #-w +K
 OCAMLPP=
 
 LIB_CMXFILES= \
 	testrunner.cmx \
+	testrunner_dl.cmx
 
 LIB_CMOFILES=$(LIB_CMXFILES:.cmx=.cmo)
 LIB_CMIFILES=$(LIB_CMXFILES:.cmx=.cmi)
@@ -68,6 +69,9 @@ $(LIB_CMXS): $(LIB_CMIFILES) $(LIB_CMXFILES)
 
 $(LIB_BYTE): $(LIB_CMIFILES) $(LIB_CMOFILES)
 	$(OCAMLFIND) ocamlc$(PBYTE) -a -o $@ $(LIB_CMOFILES)
+
+test: opt
+	cd ../test && $(MAKE)
 
 # mk scripts
 $(MK_TR): $(LIB)

@@ -1706,7 +1706,7 @@ fi
 SHARE_DIR=$datadir
 
 
-PACKAGES=unix,yojson,re.str,xtmpl
+PACKAGES=unix,dynlink,yojson,re.str,xtmpl
 
 #############################
 # substitutions to perform

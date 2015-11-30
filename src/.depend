@@ -1,5 +1,8 @@
-testrunner_main.cmo : testrunner.cmi
-testrunner_main.cmx : testrunner.cmx
+testrunner_dl.cmo : testrunner.cmi testrunner_dl.cmi
+testrunner_dl.cmx : testrunner.cmx testrunner_dl.cmi
+testrunner_dl.cmi : testrunner.cmi
+testrunner_main.cmo : testrunner_dl.cmi testrunner.cmi
+testrunner_main.cmx : testrunner_dl.cmx testrunner.cmx
 testrunner.cmo : testrunner.cmi
 testrunner.cmx : testrunner.cmi
 testrunner.cmi :

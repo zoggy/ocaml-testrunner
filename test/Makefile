@@ -22,69 +22,18 @@
 #                                                                               #
 #################################################################################
 
-# check for one particular file of the sources
-AC_INIT(master.Makefile.in)
+include ../master.Makefile
 
-VERSION=0.1.O
-PACKAGE=testrunner
+EXE=../src/testrunner
+COMPFLAGS=-I ../src -rectypes
 
-# The root directory where we will compile
-ROOT=`pwd`
-USER=`basename $HOME`
-GROUP=`groups | cut -d' ' -f 1`
-OCAMLFIND_PATH=`ocamlfind printconf path`
+PLUGINS=square.cmxs
 
-ocaml unix.cma str.cma checkocaml.ml ocaml_config.sh || exit 1
-. ./ocaml_config.sh
+$(PLUGINS): ../src/testrunner.cmxa
 
-if test "$prefix" = "NONE" ; then
-  prefix=`dirname $OCAMLBIN`
-fi
+all: $(PLUGINS)
+	$(EXE) `for i in $(PLUGINS); do echo -n "-l $$i"; done` test.json \
+	--xml test.xml --count -
 
-if test "$datadir" = "\${datarootdir}" ; then
-        datadir=${prefix}/share/stog
-fi
-if test "$datadir" = "\${prefix}/share" ; then
-        datadir=$prefix/share
-fi
-SHARE_DIR=$datadir
-
-
-PACKAGES=unix,dynlink,yojson,re.str,xtmpl
-
-#############################
-# substitutions to perform
-AC_SUBST(OCAMLC)
-AC_SUBST(OCAMLOPT)
-AC_SUBST(OCAMLDEP)
-AC_SUBST(OCAMLLEX)
-AC_SUBST(OCAMLYACC)
-AC_SUBST(OCAMLBEST)
-AC_SUBST(OCAMLVERSION)
-AC_SUBST(OCAMLLIB)
-AC_SUBST(OCAMLBIN)
-AC_SUBST(OCAMLDOC_OPT)
-AC_SUBST(OCAMLFIND)
-AC_SUBST(EXEC_PREFIX)
-AC_SUBST(ROOT)
-AC_SUBST(USER)
-AC_SUBST(GROUP)
-AC_SUBST(OCAMLFIND_PATH)
-AC_SUBST(VERSION)
-AC_SUBST(PACKAGE)
-AC_SUBST(SHARE_DIR)
-
-AC_SUBST(PACKAGES)
-
-# Finally create the master.Makefile.in
-ACFILES="master.Makefile src/META"
-AC_OUTPUT($ACFILES)
-chmod a-w master.Makefile
-chmod a-w src/META
-
-echo "
-### Results of configuration ###
-
-Version is $VERSION
-Binaries will be installed in "`dirname \`which ${OCAMLC}\``"
-"
+clean:
+	rm -f *.cm* *.o *.annot test.xml

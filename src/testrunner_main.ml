@@ -27,9 +27,7 @@
 
 open Testrunner
 
-let handlers = ref SMap.empty
-
-let run trees =
+let run handlers trees =
   let print = print_endline in
   let (pok, prerr) =
     if Unix.isatty Unix.stderr then
@@ -43,14 +41,66 @@ let run trees =
     else
       (None, None)
   in
-  let trees = Tree.run_list ~print ?pok ?prerr !handlers trees in
-  print_endline (Report.string_of_count (Report.count trees))
+  Tree.run_list ~print ?pok ?prerr handlers trees
+
+let plugin_files = ref []
+
+type report_mode = Count | Xml
+
+(* FIXME: output directly to channels insteaf of using intermediate strings.
+     This require having Xtmpl_xml.to_channel and Xtmpl_xml.to_file. *)
+let report stdout_mode output_modes trees =
+  begin
+    match stdout_mode with
+      None -> ()
+    | Some Count ->
+        print_endline (Report.string_of_count (Report.count trees))
+    | Some Xml ->
+        let xmls = Xml.to_xml trees in
+        print_endline (Xtmpl_xml.to_string xmls)
+  end;
+  List.iter
+    (fun (file, mode) ->
+       let str =
+         match mode with
+           Count -> Report.string_of_count (Report.count trees)
+         | Xml ->
+             let xmls = Xml.to_xml trees in
+             Xtmpl_xml.to_string xmls
+       in
+       Xtmpl_misc.file_of_string ~file str
+    )
+    output_modes
+
+let stdout_mode = ref (Some Count)
+let output_modes = ref ([] : (string * report_mode) list)
+
+let add_output mode = function
+  "-" -> stdout_mode := Some mode
+| file -> output_modes := (file, mode) :: !output_modes
 
 let options = [
+    "-l", Arg.String (fun s -> plugin_files := s :: !plugin_files),
+    "file.cm{o,a,xs} load the given plugin file" ;
 
+    "--xml", Arg.String (add_output Xml),
+    "file output XML report to file (or stdout if file is '-')" ;
+
+    "--count", Arg.String (add_output Count),
+    "file output count report to file (or stdout if file is '-')" ;
+
+    "--nostdout", Arg.Unit (fun () -> stdout_mode := None),
+    " do not report on stdout" ;
   ]
 
-let usage = Printf.sprintf "Usage: %s [options] <json files>" Sys.argv.(0)
+let usage =
+  Printf.sprintf "Usage: %s [options] <json files>" Sys.argv.(0)
+
+let merge_handlers =
+  SMap.merge
+    (fun k v1 v2 ->
+       match v1, v2 with  _, Some f -> Some f
+       | v, _ -> v)
 
 let main () =
   let args = ref [] in
@@ -61,8 +111,18 @@ let main () =
     [] -> failwith usage
   | files ->
       try
+        let print fmt = Printf.ksprintf
+          (fun str -> output_string stderr str; flush stderr) fmt
+        in
+        let handlers = List.fold_left
+          (fun acc file ->
+             let h = Testrunner_dl.load ~print file in
+             merge_handlers acc h)
+            Testrunner.SMap.empty (List.rev !plugin_files)
+        in
         let trees = List.flatten (List.map Tree.of_file files) in
-        run trees
+        let trees = run handlers trees in
+        report !stdout_mode !output_modes trees
       with
         Error.Error e ->
           failwith (Error.to_string e)
