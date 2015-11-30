@@ -33,7 +33,10 @@ let add_handler name f =
 
 let load ~(print:('b, unit, string, 'a) Pervasives.format4 -> 'b) file =
   handlers := SMap.empty ;
-  let file = Dynlink.adapt_filename file in
+  let file =
+    try Dynlink.adapt_filename file
+    with Invalid_argument _ -> file
+  in
   print "Loading %S... " file ;
   try
     Dynlink.loadfile file;
