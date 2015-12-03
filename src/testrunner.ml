@@ -368,6 +368,41 @@ module Report =
         count.ok total pct_ok
         count.ko total pct_fail
         count.err total pct_err
+
+      let pb b fmt = Printf.bprintf b fmt
+      let string_of_path l = "/" ^ (String.concat "/" l)
+
+      let print_field b margin name str_opt =
+         pb b "%s%s: " margin name ;
+         Buffer.add_string b (string_of_opt str_opt) ;
+         Buffer.add_string b "\n"
+
+      let print_test b margin path t =
+        pb b "%sTest %s: " margin (string_of_path (List.rev path)) ;
+        match t.Tree.result with
+          Some (`R { Result.ok = true }) ->
+                pb b "%s" "OK\n"
+        | Some (`R r) ->
+                pb b "%s" "Fail\n";
+                let margin = margin ^ "  " in
+                print_field b margin "expected" r.expected ;
+                print_field b margin "  result" r.result ;
+                if r.output <> None then print_field b margin "  output" r.output ;
+        | Some (`E e) ->
+                pb b "%s" "Fail with exception\n" ;
+                pb b "%s%s\n" margin (Error.to_string (Error.Exception_in_test e)) ;
+        | None -> ()
+
+      let print b =
+         let rec iter margin path t =
+           let path = (string_of_opt t.id) :: path in
+           match t.subs with
+            [] -> print_test b margin path t
+          | subs ->
+            pb b "%s=== %s\n" margin (string_of_opt t.title);
+            List.iter (iter (margin^"  ") path) t.subs ;
+      in
+      List.iter (iter "" [])
   end
 (*
 let () =

@@ -130,4 +130,5 @@ module Report :
     type count = { ok : int; ko : int; err : int; }
     val count : Tree.t list -> count
     val string_of_count : count -> string
+    val print : Buffer.t -> Tree.t list -> unit
   end

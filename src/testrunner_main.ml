@@ -36,7 +36,7 @@ let color_funs_of_channel oc =
   else
     let f x = x in
     (f, f)
-    
+
 let run handlers trees =
   let print = prerr_endline in
   let (ok, err) = color_funs_of_channel Unix.stderr in
@@ -47,13 +47,13 @@ let lwt_run handlers trees =
     Lwt_io.write_line Lwt_io.stdout str >>= fun () ->
     Lwt_io.flush Lwt_io.stdout
   in
-  let print = write_line Lwt_io.stderr in 
+  let print = write_line Lwt_io.stderr in
   let (ok, err) = color_funs_of_channel Unix.stderr in
   Tree.lwt_run_list ~print ~ok ~err handlers trees
 
 let plugin_files = ref []
 
-type report_mode = Count | Xml
+type report_mode = Count | Xml | Text
 
 (* FIXME: output directly to channels insteaf of using intermediate strings.
      This require having Xtmpl_xml.to_channel and Xtmpl_xml.to_file. *)
@@ -66,6 +66,10 @@ let report stdout_mode output_modes trees =
     | Some Xml ->
         let xmls = Xml.to_xml trees in
         print_endline (Xtmpl_xml.to_string xmls)
+    | Some Text ->
+       let b = Buffer.create 256 in
+       Report.print b trees;
+       print_string (Buffer.contents b)
   end;
   List.iter
     (fun (file, mode) ->
@@ -75,6 +79,10 @@ let report stdout_mode output_modes trees =
          | Xml ->
              let xmls = Xml.to_xml trees in
              Xtmpl_xml.to_string xmls
+         | Text ->
+             let b = Buffer.create 256 in
+             Report.print b trees ;
+             Buffer.contents b
        in
        Xtmpl_misc.file_of_string ~file str
     )
@@ -96,6 +104,9 @@ let options = [
 
     "--xml", Arg.String (add_output Xml),
     "file output XML report to file (or stdout if file is '-')" ;
+
+    "--text", Arg.String (add_output Text),
+    "file output text report to file (or stdout if file is '-')" ;
 
     "--count", Arg.String (add_output Count),
     "file output count report to file (or stdout if file is '-')" ;
