@@ -81,33 +81,33 @@ module Tree :
     val string_of_opt : string option -> string
     val run_test :
       print:(string -> unit) ->
-      pok:(string -> unit) ->
-      prerr:(string -> unit) -> (Env.t -> Result.t) SMap.t -> t -> t
+      ok:(string -> string) ->
+      err:(string -> string) -> (Env.t -> Result.t) SMap.t -> string -> t -> t
     val run :
       (Env.t -> Result.t) SMap.t ->
       ?print:(string -> unit) ->
-      ?pok:(string -> unit) ->
-      ?prerr:(string -> unit) -> ?re:Re_str.regexp -> t -> t
+      ?ok:(string -> string) ->
+      ?err:(string -> string) -> ?re:Re_str.regexp -> t -> t
     val run_list :
       ?print:(string -> unit) ->
-      ?pok:(string -> unit) ->
-      ?prerr:(string -> unit) ->
+      ?ok:(string -> string) ->
+      ?err:(string -> string) ->
       ?re:Re_str.regexp -> (Env.t -> Result.t) SMap.t -> t list -> t list
 
     val lwt_run_test :
       print:(string -> unit Lwt.t) ->
-      pok:(string -> unit Lwt.t) ->
-      prerr:(string -> unit Lwt.t) ->
-      (Env.t -> Result.t Lwt.t) SMap.t -> t -> t Lwt.t
+      ok:(string -> string) ->
+      err:(string -> string) ->
+      (Env.t -> Result.t Lwt.t) SMap.t -> string -> t -> t Lwt.t
     val lwt_run :
       (Env.t -> Result.t Lwt.t) SMap.t ->
       ?print:(string -> unit Lwt.t) ->
-      ?pok:(string -> unit Lwt.t) ->
-      ?prerr:(string -> unit Lwt.t) -> ?re:Re_str.regexp -> t -> t Lwt.t
+      ?ok:(string -> string) ->
+      ?err:(string -> string) -> ?re:Re_str.regexp -> t -> t Lwt.t
     val lwt_run_list :
       ?print:(string -> unit Lwt.t) ->
-      ?pok:(string -> unit Lwt.t) ->
-      ?prerr:(string -> unit Lwt.t) ->
+      ?ok:(string -> string) ->
+      ?err:(string -> string) ->
       ?re:Re_str.regexp ->
       (Env.t -> Result.t Lwt.t) SMap.t -> t list -> t list Lwt.t
   end

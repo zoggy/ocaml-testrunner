@@ -28,41 +28,28 @@
 open Testrunner
 open Lwt.Infix
 
+let color_funs_of_channel oc =
+  if Unix.isatty oc then
+    let ok str = Printf.sprintf "\027[1;32m%s\027[0m" str in
+    let err str = Printf.sprintf "\027[1;31m%s\027[0m" str in
+    (ok, err)
+  else
+    let f x = x in
+    (f, f)
+    
 let run handlers trees =
-  let print = print_endline in
-  let (pok, prerr) =
-    if Unix.isatty Unix.stderr then
-      let pok str = prerr_endline
-        (Printf.sprintf "\027[1;32m%s\027[0m" str)
-      in
-      let prerr str = prerr_endline
-        (Printf.sprintf "\027[1;31m%s\027[0m" str)
-      in
-      (Some pok, Some prerr)
-    else
-      (None, None)
-  in
-  Tree.run_list ~print ?pok ?prerr handlers trees
+  let print = prerr_endline in
+  let (ok, err) = color_funs_of_channel Unix.stderr in
+  Tree.run_list ~print ~ok ~err handlers trees
 
 let lwt_run handlers trees =
   let write_line oc str =
     Lwt_io.write_line Lwt_io.stdout str >>= fun () ->
     Lwt_io.flush Lwt_io.stdout
   in
-  let print = write_line Lwt_io.stdout in
-  let (pok, prerr) =
-    if Unix.isatty Unix.stderr then
-      let pok str = write_line Lwt_io.stderr
-        (Printf.sprintf "\027[1;32m%s\027[0m" str)
-      in
-      let prerr str = write_line Lwt_io.stderr
-        (Printf.sprintf "\027[1;31m%s\027[0m" str)
-      in
-      (Some pok, Some prerr)
-    else
-      (None, None)
-  in
-  Tree.lwt_run_list ~print ?pok ?prerr handlers trees
+  let print = write_line Lwt_io.stderr in 
+  let (ok, err) = color_funs_of_channel Unix.stderr in
+  Tree.lwt_run_list ~print ~ok ~err handlers trees
 
 let plugin_files = ref []
 

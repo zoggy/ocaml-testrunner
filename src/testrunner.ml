@@ -183,9 +183,9 @@ module Tree =
 
     let string_of_opt = function None -> "" | Some s -> s
 
-    let run_test ~print ~pok ~prerr handlers t =
+    let run_test ~print ~ok ~err handlers path t =
       let open Result in
-      print (Printf.sprintf "Running test %s" (string_of_opt t.id));
+      print (Printf.sprintf "Running test %s" path);
       match t.typ with
         None -> Error.missing_type ()
       | Some typ ->
@@ -194,22 +194,24 @@ module Tree =
       | f ->
         try
           let r = f t.env in
-          if r.ok then pok "OK" else prerr "Fail";
+          let msg = if r.ok then ok "OK" else err "Fail" in
+          print (Printf.sprintf "[%s] %s" path msg);
           let result = Some (`R r) in
           { t with result }
         with
           e ->
-            prerr (Error.to_string (Error.Exception_in_test e)) ;
+            print (Printf.sprintf "[%s] %s" path
+              (err (Error.to_string (Error.Exception_in_test e)))) ;
             { t with result = Some (`E e) }
 
     let run handlers ?(print=fun _ -> ())
-      ?(pok=print) ?(prerr=print) ?(re=Re_str.regexp ".*") t =
+      ?(ok=fun s -> s) ?(err=fun s -> s) ?(re=Re_str.regexp ".*") t =
       let rec iter re path t =
         let path = path ^ "/" ^ (match t.id with None -> "" | Some s -> s) in
         match t.subs with
           [] ->
             if Re_str.string_match re path 0
-            then run_test ~print ~pok ~prerr handlers t
+            then run_test ~print ~ok ~err handlers path t
             else t
         | l ->
             print (Printf.sprintf "Testing section %s" path);
@@ -218,10 +220,10 @@ module Tree =
       in
       iter re "" t
 
-    let run_list ?print ?pok ?prerr ?re handlers =
-      List.map (run ?print ?pok ?prerr ?re handlers)
+    let run_list ?print ?ok ?err ?re handlers =
+      List.map (run ?print ?ok ?err ?re handlers)
 
-    let lwt_run_test ~print ~pok ~prerr handlers t =
+    let lwt_run_test ~print ~ok ~err handlers path t =
       let open Result in
       let%lwt () = print (Printf.sprintf "Running test %s" (string_of_opt t.id)) in
       match t.typ with
@@ -232,23 +234,25 @@ module Tree =
       | f ->
         try%lwt
           let%lwt r = f t.env in
-          let%lwt () = if r.ok then pok "OK" else prerr "Fail" in
+          let msg = if r.ok then ok "OK" else err "Fail" in
+          print (Printf.sprintf "[%s] %s" path msg) >>= fun () ->
           let result = Some (`R r) in
           Lwt.return { t with result }
         with
           e ->
-            prerr (Error.to_string (Error.Exception_in_test e))
+            print (Printf.sprintf "[%s] %s" path
+             (err (Error.to_string (Error.Exception_in_test e))))
               >>= fun () ->
                 Lwt.return { t with result = Some (`E e) }
 
     let lwt_run handlers ?(print=fun _ -> Lwt.return_unit)
-      ?(pok=print) ?(prerr=print) ?(re=Re_str.regexp ".*") t =
+      ?(ok=fun s -> s) ?(err=fun s -> s) ?(re=Re_str.regexp ".*") t =
       let rec iter re path t =
         let path = path ^ "/" ^ (match t.id with None -> "" | Some s -> s) in
         match t.subs with
           [] ->
             if Re_str.string_match re path 0
-            then lwt_run_test ~print ~pok ~prerr handlers t
+            then lwt_run_test ~print ~ok ~err handlers path t
             else Lwt.return t
         | l ->
             let%lwt () = print (Printf.sprintf "Testing section %s" path) in
@@ -257,8 +261,8 @@ module Tree =
       in
       iter re "" t
 
-    let lwt_run_list ?print ?pok ?prerr ?re handlers =
-      Lwt_list.map_p (lwt_run ?print ?pok ?prerr ?re handlers)
+    let lwt_run_list ?print ?ok ?err ?re handlers =
+      Lwt_list.map_p (lwt_run ?print ?ok ?err ?re handlers)
   end
 
 module Xml =
