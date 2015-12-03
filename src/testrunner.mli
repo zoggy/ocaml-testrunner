@@ -41,13 +41,17 @@ module Error :
     val unhandled_type : string -> 'a
     val exception_in_text : exn -> 'a
     val invalid_input : string -> 'a
-    val to_string : ?exn_to_string:(exn -> string) -> error -> string
+    val to_string : error -> string
+    val add_exn_to_string :
+      ((exn -> string) -> exn -> string) -> unit
   end
 module Env :
   sig
     type t = J.json SMap.t
     val to_json : 'a SMap.t -> [> `Assoc of (SMap.key * 'a) list ]
     val int : J.json SMap.t -> SMap.key -> int
+    val string : J.json SMap.t -> SMap.key -> string
+    val float : J.json SMap.t -> SMap.key -> float
   end
 module Result :
   sig
@@ -76,9 +80,9 @@ module Tree :
     val of_file : ?t:t -> string -> t list
     val string_of_opt : string option -> string
     val run_test :
-      print:(string -> 'a) ->
-      pok:(string -> 'b) ->
-      prerr:(string -> 'b) -> (Env.t -> Result.t) SMap.t -> t -> t
+      print:(string -> unit) ->
+      pok:(string -> unit) ->
+      prerr:(string -> unit) -> (Env.t -> Result.t) SMap.t -> t -> t
     val run :
       (Env.t -> Result.t) SMap.t ->
       ?print:(string -> unit) ->
@@ -89,6 +93,23 @@ module Tree :
       ?pok:(string -> unit) ->
       ?prerr:(string -> unit) ->
       ?re:Re_str.regexp -> (Env.t -> Result.t) SMap.t -> t list -> t list
+
+    val lwt_run_test :
+      print:(string -> unit Lwt.t) ->
+      pok:(string -> unit Lwt.t) ->
+      prerr:(string -> unit Lwt.t) ->
+      (Env.t -> Result.t Lwt.t) SMap.t -> t -> t Lwt.t
+    val lwt_run :
+      (Env.t -> Result.t Lwt.t) SMap.t ->
+      ?print:(string -> unit Lwt.t) ->
+      ?pok:(string -> unit Lwt.t) ->
+      ?prerr:(string -> unit Lwt.t) -> ?re:Re_str.regexp -> t -> t Lwt.t
+    val lwt_run_list :
+      ?print:(string -> unit Lwt.t) ->
+      ?pok:(string -> unit Lwt.t) ->
+      ?prerr:(string -> unit Lwt.t) ->
+      ?re:Re_str.regexp ->
+      (Env.t -> Result.t Lwt.t) SMap.t -> t list -> t list Lwt.t
   end
 module Xml :
   sig

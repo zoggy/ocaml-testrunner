@@ -24,25 +24,32 @@
 
 module SMap = Map.Make(String)
 module J = Yojson.Safe;;
-
+open Lwt.Infix
 module Error =
   struct
     type error =
       | Unexpected_json of J.json
-        | Missing_type
-        | Unhandled_type of string
-        | Exception_in_test of exn
-        | Invalid_input of string
+      | Missing_type
+      | Unhandled_type of string
+      | Exception_in_test of exn
+      | Invalid_input of string
 
     exception Error of error
     let error e = raise (Error e)
+    let lwt_error e = Lwt.fail (Error e)
     let unexpected_json json = error (Unexpected_json json)
     let missing_type () = error Missing_type
+    let lwt_missing_type () = lwt_error Missing_type
     let unhandled_type typ = error (Unhandled_type typ)
+    let lwt_unhandled_type typ = lwt_error (Unhandled_type typ)
     let exception_in_text e = error (Exception_in_test e)
     let invalid_input str = error (Invalid_input str)
 
-    let rec to_string ?(exn_to_string=Printexc.to_string) = function
+    let exn_to_string = ref (function e -> Printexc.to_string e)
+    let add_exn_to_string f =
+      exn_to_string := (f !exn_to_string)
+
+    let rec to_string = function
     | Unexpected_json json ->
         Printf.sprintf "Unexpected JSON: %s" (J.to_string json)
     | Missing_type -> "Missing _type"
@@ -50,7 +57,7 @@ module Error =
     | Exception_in_test (Error e) ->
         Printf.sprintf "Uncaught exception in test: %s" (to_string e)
     | Exception_in_test e ->
-        Printf.sprintf "Uncaught exception in test: %s" (exn_to_string e)
+        Printf.sprintf "Uncaught exception in test: %s" (!exn_to_string e)
     | Invalid_input str ->
         Printf.sprintf "Invalid input: %s" str
   end
@@ -63,12 +70,26 @@ module Env =
         (SMap.fold (fun name json acc -> (name, json) :: acc)
          env [])
 
+    let string env var =
+      match SMap.find var env with
+      | exception Not_found -> Error.invalid_input ("Missing "^var)
+      | `String n -> n
+      | json -> Error.invalid_input
+        (Printf.sprintf "Invalid %s string value: %s" var (J.to_string json))
+
     let int env var =
       match SMap.find var env with
       | exception Not_found -> Error.invalid_input ("Missing "^var)
       | `Int n -> n
         | json -> Error.invalid_input
         (Printf.sprintf "Invalid %s integer value: %s" var (J.to_string json))
+
+    let float env var =
+      match SMap.find var env with
+      | exception Not_found -> Error.invalid_input ("Missing "^var)
+      | `Float n -> n
+        | json -> Error.invalid_input
+        (Printf.sprintf "Invalid %s float value: %s" var (J.to_string json))
   end
 
 
@@ -199,6 +220,45 @@ module Tree =
 
     let run_list ?print ?pok ?prerr ?re handlers =
       List.map (run ?print ?pok ?prerr ?re handlers)
+
+    let lwt_run_test ~print ~pok ~prerr handlers t =
+      let open Result in
+      let%lwt () = print (Printf.sprintf "Running test %s" (string_of_opt t.id)) in
+      match t.typ with
+        None -> Error.lwt_missing_type ()
+      | Some typ ->
+          match SMap.find typ handlers with
+          | exception Not_found -> Error.lwt_unhandled_type typ
+      | f ->
+        try%lwt
+          let%lwt r = f t.env in
+          let%lwt () = if r.ok then pok "OK" else prerr "Fail" in
+          let result = Some (`R r) in
+          Lwt.return { t with result }
+        with
+          e ->
+            prerr (Error.to_string (Error.Exception_in_test e))
+              >>= fun () ->
+                Lwt.return { t with result = Some (`E e) }
+
+    let lwt_run handlers ?(print=fun _ -> Lwt.return_unit)
+      ?(pok=print) ?(prerr=print) ?(re=Re_str.regexp ".*") t =
+      let rec iter re path t =
+        let path = path ^ "/" ^ (match t.id with None -> "" | Some s -> s) in
+        match t.subs with
+          [] ->
+            if Re_str.string_match re path 0
+            then lwt_run_test ~print ~pok ~prerr handlers t
+            else Lwt.return t
+        | l ->
+            let%lwt () = print (Printf.sprintf "Testing section %s" path) in
+            let%lwt subs = Lwt_list.map_p (iter re path) t.subs in
+            Lwt.return { t with subs }
+      in
+      iter re "" t
+
+    let lwt_run_list ?print ?pok ?prerr ?re handlers =
+      Lwt_list.map_p (lwt_run ?print ?pok ?prerr ?re handlers)
   end
 
 module Xml =

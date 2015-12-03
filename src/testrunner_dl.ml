@@ -27,12 +27,15 @@ open Testrunner
 let () = Dynlink.allow_unsafe_modules true
 
 let handlers = ref (SMap.empty : (Env.t -> Result.t) SMap.t)
+let lwt_handlers = ref (SMap.empty : (Env.t -> Result.t Lwt.t) SMap.t)
 
 let add_handler name f =
   handlers := SMap.add name f !handlers
 
+let add_lwt_handler name f =
+  lwt_handlers := SMap.add name f !lwt_handlers
+
 let load ~(print:('b, unit, string, 'a) Pervasives.format4 -> 'b) file =
-  handlers := SMap.empty ;
   let file =
     try Dynlink.adapt_filename file
     with Invalid_argument _ -> file
@@ -40,6 +43,8 @@ let load ~(print:('b, unit, string, 'a) Pervasives.format4 -> 'b) file =
   print "Loading %S... " file ;
   try
     Dynlink.loadfile file;
-    print "%s" "ok\n";
-    !handlers
+    print "%s" "ok\n"; ()
   with Dynlink.Error e -> failwith (Dynlink.error_message e)
+
+let handlers () = !handlers
+let lwt_handlers () = !lwt_handlers

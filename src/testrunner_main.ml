@@ -26,15 +26,16 @@
 (** Main module of provided testrunner program. *)
 
 open Testrunner
+open Lwt.Infix
 
 let run handlers trees =
   let print = print_endline in
   let (pok, prerr) =
     if Unix.isatty Unix.stderr then
-      let pok str = print_endline
+      let pok str = prerr_endline
         (Printf.sprintf "\027[1;32m%s\027[0m" str)
       in
-      let prerr str = print_endline
+      let prerr str = prerr_endline
         (Printf.sprintf "\027[1;31m%s\027[0m" str)
       in
       (Some pok, Some prerr)
@@ -42,6 +43,26 @@ let run handlers trees =
       (None, None)
   in
   Tree.run_list ~print ?pok ?prerr handlers trees
+
+let lwt_run handlers trees =
+  let write_line oc str =
+    Lwt_io.write_line Lwt_io.stdout str >>= fun () ->
+    Lwt_io.flush Lwt_io.stdout
+  in
+  let print = write_line Lwt_io.stdout in
+  let (pok, prerr) =
+    if Unix.isatty Unix.stderr then
+      let pok str = write_line Lwt_io.stderr
+        (Printf.sprintf "\027[1;32m%s\027[0m" str)
+      in
+      let prerr str = write_line Lwt_io.stderr
+        (Printf.sprintf "\027[1;31m%s\027[0m" str)
+      in
+      (Some pok, Some prerr)
+    else
+      (None, None)
+  in
+  Tree.lwt_run_list ~print ?pok ?prerr handlers trees
 
 let plugin_files = ref []
 
@@ -74,12 +95,15 @@ let report stdout_mode output_modes trees =
 
 let stdout_mode = ref (Some Count)
 let output_modes = ref ([] : (string * report_mode) list)
+let lwt = ref false
 
 let add_output mode = function
   "-" -> stdout_mode := Some mode
 | file -> output_modes := (file, mode) :: !output_modes
 
 let options = [
+    "--lwt", Arg.Set lwt, " use lwt handlers" ;
+
     "-l", Arg.String (fun s -> plugin_files := s :: !plugin_files),
     "file.cm{o,a,xs} load the given plugin file" ;
 
@@ -96,12 +120,6 @@ let options = [
 let usage =
   Printf.sprintf "Usage: %s [options] <json files>" Sys.argv.(0)
 
-let merge_handlers =
-  SMap.merge
-    (fun k v1 v2 ->
-       match v1, v2 with  _, Some f -> Some f
-       | v, _ -> v)
-
 let main () =
   let args = ref [] in
   Arg.parse options
@@ -114,14 +132,14 @@ let main () =
         let print fmt = Printf.ksprintf
           (fun str -> output_string stderr str; flush stderr) fmt
         in
-        let handlers = List.fold_left
-          (fun acc file ->
-             let h = Testrunner_dl.load ~print file in
-             merge_handlers acc h)
-            Testrunner.SMap.empty (List.rev !plugin_files)
-        in
+        List.iter (Testrunner_dl.load ~print)
+          (List.rev !plugin_files);
         let trees = List.flatten (List.map Tree.of_file files) in
-        let trees = run handlers trees in
+        let trees =
+          match !lwt with
+            false -> run (Testrunner_dl.handlers()) trees
+          | true -> Lwt_main.run (lwt_run (Testrunner_dl.lwt_handlers()) trees)
+        in
         report !stdout_mode !output_modes trees
       with
         Error.Error e ->

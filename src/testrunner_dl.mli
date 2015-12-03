@@ -22,9 +22,17 @@
 (*                                                                               *)
 (*********************************************************************************)
 
+val handlers : unit -> (Testrunner.Env.t -> Testrunner.Result.t) Testrunner.SMap.t
+
+val lwt_handlers :
+  unit -> (Testrunner.Env.t -> Testrunner.Result.t Lwt.t) Testrunner.SMap.t
+
 val add_handler :
   Testrunner.SMap.key -> (Testrunner.Env.t -> Testrunner.Result.t) -> unit
 
+val add_lwt_handler :
+  Testrunner.SMap.key -> (Testrunner.Env.t -> Testrunner.Result.t Lwt.t) -> unit
+
 val load :
   print:((string -> 'a, unit, string, 'a) format4 -> string -> 'a) ->
-  string -> (Testrunner.Env.t -> Testrunner.Result.t) Testrunner.SMap.t
+    string -> unit
