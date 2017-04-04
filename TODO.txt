@@ -1,0 +1,1 @@
+- allow plugins to add command line options

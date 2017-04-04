@@ -146,8 +146,6 @@ install-lib:
 		testrunner_main.cm* testrunner_main.o \
 		$(MAIN) $(MAIN_BYTE) $(MK_TR) $(MK_TR_BYTE)
 
-install-share:
-
 uninstall: uninstall-lib
 
 uninstall-lib:
