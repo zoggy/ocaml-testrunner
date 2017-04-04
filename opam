@@ -19,10 +19,10 @@ build: [
 ]
 
 install: [
-  [make "install-lib" "install-share"]
+  [make "install-lib"]
 ]
 
-remove: [["ocamlfind" "remove" "stog"]]
+remove: [["ocamlfind" "remove" "testrunner"]]
 depends: [
   "ocamlfind"
   "xtmpl" {>= "0.16.0"}
