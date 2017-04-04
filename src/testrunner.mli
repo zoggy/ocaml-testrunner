@@ -48,21 +48,40 @@ module Error :
 module Env :
   sig
     type t = J.json SMap.t
-    val to_json : 'a SMap.t -> [> `Assoc of (SMap.key * 'a) list ]
-    val int : J.json SMap.t -> SMap.key -> int
-    val string : J.json SMap.t -> SMap.key -> string
-    val float : J.json SMap.t -> SMap.key -> float
+    val to_json : 'a SMap.t -> [> `Assoc of (string * 'a) list ]
+    val string_of_json : ?var:string -> J.json -> string
+    val int_of_json : ?var:string -> J.json -> int
+    val float_of_json : ?var:string -> J.json -> float
+    val bool_of_json : ?var:string -> J.json -> bool
+    val pair_of_json :
+      (?var:string -> J.json -> 'a) ->
+        (?var:string -> J.json -> 'b) -> ?var:string -> J.json -> 'a * 'b
+
+    val int : t -> string -> int
+    val string : t -> string -> string
+    val float : t -> string -> float
+    val bool : t -> string -> bool
+
+    val require : t -> string -> (?var:string -> J.json -> 'a) -> 'a
+    val opt : t -> string -> (?var:string -> J.json -> 'a) -> 'a option
+    val pair : t -> string ->
+      (?var:string -> J.json -> 'a) ->
+        (?var:string -> J.json -> 'b) -> 'a *'b
   end
 module Result :
   sig
     type t = {
-      ok : bool;
-      output : string option;
-      expected : string option;
-      result : string option;
+        ok : bool;
+        output : string option;
+        expected : string option;
+        result : string option;
+        xml_expected : Xtmpl_xml.tree list option ;
+        xml_result : Xtmpl_xml.tree list option ;
     }
     val make :
-      ?output:string -> ?expected:string -> ?result:string -> bool -> t
+      ?output:string -> ?expected:string -> ?result:string ->
+        ?xml_expected:Xtmpl_xml.tree list ->
+        ?xml_result:Xtmpl_xml.tree list -> bool -> t
   end
 module Tree :
   sig
@@ -76,7 +95,7 @@ module Tree :
     }
     val empty : t
     val of_json : t -> J.json -> t list
-    val of_assoc : t -> (SMap.key * J.json) list -> t
+    val of_assoc : t -> (string * J.json) list -> t
     val of_file : ?t:t -> string -> t list
     val string_of_opt : string option -> string
     val run_test :
@@ -122,7 +141,10 @@ module Xml :
       ?id:string ->
       ?title:string ->
       ?input:string ->
-      ?expected:string -> ?result:string -> ?output:string -> bool -> X.tree
+      ?expected:string -> ?result:string ->
+      ?xml_expected:Xtmpl_xml.tree list ->
+      ?xml_result:Xtmpl_xml.tree list ->
+      ?output:string -> bool -> X.tree
     val to_xml : Tree.t list -> X.tree list
   end
 module Report :

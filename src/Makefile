@@ -136,29 +136,22 @@ docstog: $(ODOC) dump.odoc
 
 
 ########
-install: install-lib install-bin
+install: install-lib
 
 install-lib:
 	@$(OCAMLFIND) install testrunner META \
 		$(LIB_CMIFILES) $(LIB_CMXFILES) $(LIB_CMXFILES:.cmx=.o) \
 		$(LIB_BYTE) $(LIB) $(LIB:.cmxa=.a) $(LIB_CMXS) \
 		$(LIB_CMXFILES:.cmx=.mli) \
-		testrunner_main.cm* testrunner_main.o
+		testrunner_main.cm* testrunner_main.o \
+		$(MAIN) $(MAIN_BYTE) $(MK_TR) $(MK_TR_BYTE)
 
 install-share:
 
-install-bin:
-	$(CP) $(MAIN) $(MAIN_BYTE) $(MK_TR) $(MK_TR_BYTE) \
-		`dirname \`which $(OCAMLC)\``/
-
-uninstall: uninstall-lib uninstall-bin
+uninstall: uninstall-lib
 
 uninstall-lib:
 	@$(OCAMLFIND) remove testrunner
-
-uninstall-bin:
-	for i in $(MAIN) $(MAIN_BYTE)	$(MK_TR) $(MK_TR_BYTE) ;\
-		do $(RM) `dirname \`which $(OCAMLC)\``/$$i; done
 
 #####
 clean:

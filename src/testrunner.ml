@@ -70,26 +70,58 @@ module Env =
         (SMap.fold (fun name json acc -> (name, json) :: acc)
          env [])
 
-    let string env var =
+    let opt env var (f:?var:string -> J.json -> 'a) =
       match SMap.find var env with
-      | exception Not_found -> Error.invalid_input ("Missing "^var)
-      | `String n -> n
-      | json -> Error.invalid_input
-        (Printf.sprintf "Invalid %s string value: %s" var (J.to_string json))
+      | exception Not_found -> None
+      | json -> Some (f ~var json)
 
-    let int env var =
-      match SMap.find var env with
-      | exception Not_found -> Error.invalid_input ("Missing "^var)
-      | `Int n -> n
-        | json -> Error.invalid_input
-        (Printf.sprintf "Invalid %s integer value: %s" var (J.to_string json))
+    let string_of_json ?var = function
+    | `String n -> n
+    | json -> Error.invalid_input
+        (Printf.sprintf "Invalid string value%s: %s" (J.to_string json)
+         (match var with None -> "" | Some s -> Printf.sprintf "(%s)" s)
+        )
 
-    let float env var =
+    let int_of_json ?var = function
+    | `Int n -> n
+    | json -> Error.invalid_input
+        (Printf.sprintf "Invalid integer value%s: %s" (J.to_string json)
+         (match var with None -> "" | Some s -> Printf.sprintf "(%s)" s)
+        )
+
+    let float_of_json ?var = function
+    | `Float n -> n
+    | json -> Error.invalid_input
+        (Printf.sprintf "Invalid float value%s: %s" (J.to_string json)
+         (match var with None -> "" | Some s -> Printf.sprintf "(%s)" s)
+        )
+
+    let bool_of_json ?var = function
+    | `Bool b -> b
+    | json -> Error.invalid_input
+        (Printf.sprintf "Invalid bool value%s: %s" (J.to_string json)
+         (match var with None -> "" | Some s -> Printf.sprintf "(%s)" s)
+        )
+
+    let require env var (f:?var:string -> J.json -> 'a) =
       match SMap.find var env with
       | exception Not_found -> Error.invalid_input ("Missing "^var)
-      | `Float n -> n
-        | json -> Error.invalid_input
-        (Printf.sprintf "Invalid %s float value: %s" var (J.to_string json))
+      | json -> f ~var json
+
+    let string env var = require env var string_of_json
+    let int env var = require env var int_of_json
+    let float env var = require env var float_of_json
+    let bool env var = require env var bool_of_json
+
+    let pair_of_json
+      (f1:?var:string -> J.json -> 'a)
+      (f2:?var:string -> J.json -> 'b) ?var = function
+      `List (x :: y :: _) -> (f1 ?var x, f2 ?var y)
+    | json -> Error.invalid_input
+        (Printf.sprintf "Invalid pair value%s: %s" (J.to_string json)
+         (match var with None -> "" | Some s -> Printf.sprintf "(%s)" s)
+        )
+    let pair env var f1 f2 = require env var (pair_of_json f1 f2)
   end
 
 
@@ -100,10 +132,12 @@ module Result =
         output : string option ;
         expected: string option ;
         result: string option ;
+        xml_expected : Xtmpl_xml.tree list option ;
+        xml_result : Xtmpl_xml.tree list option ;
       }
 
-    let make ?output ?expected ?result ok =
-      { ok ; output ; expected ; result }
+    let make ?output ?expected ?result ?xml_expected ?xml_result ok =
+      { ok ; output ; expected ; result ; xml_expected ; xml_result }
   end
 
 module Tree =
@@ -282,7 +316,7 @@ module Xml =
       X.node ("","test-section") ~atts subs
 
     let test ?(atts=X.atts_empty)
-      ?id ?title ?input ?expected ?result ?output status =
+      ?id ?title ?input ?expected ?result ?xml_expected ?xml_result ?output status =
       let atts = match id with
         | None -> atts
         | Some str -> X.atts_one ~atts ("","id") (str, None)
@@ -299,13 +333,31 @@ module Xml =
         | None -> subs
         | Some str -> (X.node ("", "test-output") [X.cdata str]) :: subs
       in
-      let subs = match result with
-        | None -> subs
-        | Some str -> (X.node ("","test-result") [X.cdata str]) :: subs
+      let subs =
+        let xmls =
+          match xml_result with
+          | Some _ -> xml_result
+          | None ->
+              match result with
+                None -> None
+              | Some str -> Some [X.cdata str]
+        in
+        match xmls with
+          None -> subs
+        | Some xmls -> (X.node ("","test-result") xmls) :: subs
       in
-      let subs = match expected with
-        | None -> subs
-        | Some str -> (X.node ("","test-expected") [X.cdata str]) :: subs
+      let subs =
+        let xmls =
+          match xml_expected with
+          | Some _ -> xml_expected
+          | None ->
+              match expected with
+                None -> None
+              | Some str -> Some [X.cdata str]
+        in
+        match xmls with
+          None -> subs
+        | Some xmls -> (X.node ("","test-expected") xmls) :: subs
       in
       let subs = match input with
         | None -> subs
@@ -321,7 +373,9 @@ module Xml =
             let expected = string_of_opt r.expected in
             let result = string_of_opt r.result in
             let output = string_of_opt r.output in
-            ret ~expected ~result ~output r.ok
+            let xml_expected = r.xml_expected in
+            let xml_result = r.xml_result in
+            ret ~expected ~result ~output ?xml_expected ?xml_result r.ok
         | _ -> ret false
       in
       let rec iter t =
