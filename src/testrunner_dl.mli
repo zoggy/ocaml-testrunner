@@ -36,3 +36,7 @@ val add_lwt_handler :
 val load :
   print:((string -> 'a, unit, string, 'a) format4 -> string -> 'a) ->
     string -> unit
+
+val options : (Arg.key * Arg.spec * Arg.doc) list ref
+
+val add_option : (Arg.key * Arg.spec * Arg.doc) -> unit

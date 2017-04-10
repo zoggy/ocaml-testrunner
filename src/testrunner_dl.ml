@@ -48,3 +48,7 @@ let load ~(print:('b, unit, string, 'a) Pervasives.format4 -> 'b) file =
 
 let handlers () = !handlers
 let lwt_handlers () = !lwt_handlers
+
+let options = ref []
+
+let add_option o = options := !options @ [o]

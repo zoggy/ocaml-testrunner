@@ -120,7 +120,7 @@ let usage =
 
 let main () =
   let args = ref [] in
-  Arg.parse options
+  Arg.parse (options @ !Testrunner_dl.options)
     (fun str -> args := str :: !args)
     (usage ^ "\nwhere options are:");
   match List.rev !args with
