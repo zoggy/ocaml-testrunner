@@ -1,3 +1,4 @@
-{ x: 3,
+{ foo: true,
+  x: 3,
   result: 9
 }

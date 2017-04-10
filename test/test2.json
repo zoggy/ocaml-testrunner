@@ -1,11 +1,13 @@
 [
  { _title: "Section foo",
    _id: "foo",
+   foo: true,
    _list: [
      { x: 42,
        result: "oups"
      },
-     { x: 11,
+     {
+       x: 11,
        result: 121
      }
    ]
@@ -13,7 +15,8 @@
  { _title: "Section bar",
    _id: "bar",
    _list: [
-     { x: 16,
+     { foo: true,
+       x: 16,
        result: 256
      }
    ]

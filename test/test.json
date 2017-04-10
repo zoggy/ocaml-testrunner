@@ -1,6 +1,5 @@
 { _type: "square",
   _id: "main",
-  foo: 1,
   _include: "test1.json",
   _include: "test2.json",
   _list: [
