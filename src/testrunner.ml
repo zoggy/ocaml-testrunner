@@ -78,29 +78,33 @@ module Env =
     let string_of_json ?var = function
     | `String n -> n
     | json -> Error.invalid_input
-        (Printf.sprintf "Invalid string value%s: %s" (J.to_string json)
-         (match var with None -> "" | Some s -> Printf.sprintf "(%s)" s)
+        (Printf.sprintf "Invalid string value%s: %s"
+         (match var with None -> "" | Some s -> Printf.sprintf " (%s)" s)
+           (J.to_string json)
         )
 
     let int_of_json ?var = function
     | `Int n -> n
     | json -> Error.invalid_input
-        (Printf.sprintf "Invalid integer value%s: %s" (J.to_string json)
-         (match var with None -> "" | Some s -> Printf.sprintf "(%s)" s)
+        (Printf.sprintf "Invalid integer value%s: %s"
+         (match var with None -> "" | Some s -> Printf.sprintf " (%s)" s)
+           (J.to_string json)
         )
 
     let float_of_json ?var = function
     | `Float n -> n
     | json -> Error.invalid_input
-        (Printf.sprintf "Invalid float value%s: %s" (J.to_string json)
-         (match var with None -> "" | Some s -> Printf.sprintf "(%s)" s)
+        (Printf.sprintf "Invalid float value%s: %s"
+         (match var with None -> "" | Some s -> Printf.sprintf " (%s)" s)
+          (J.to_string json)
         )
 
     let bool_of_json ?var = function
     | `Bool b -> b
     | json -> Error.invalid_input
-        (Printf.sprintf "Invalid bool value%s: %s" (J.to_string json)
-         (match var with None -> "" | Some s -> Printf.sprintf "(%s)" s)
+        (Printf.sprintf "Invalid bool value%s: %s"
+         (match var with None -> "" | Some s -> Printf.sprintf " (%s)" s)
+          (J.to_string json)
         )
 
     let require env var (f:?var:string -> J.json -> 'a) =
@@ -118,8 +122,9 @@ module Env =
       (f2:?var:string -> J.json -> 'b) ?var = function
       `List (x :: y :: _) -> (f1 ?var x, f2 ?var y)
     | json -> Error.invalid_input
-        (Printf.sprintf "Invalid pair value%s: %s" (J.to_string json)
-         (match var with None -> "" | Some s -> Printf.sprintf "(%s)" s)
+        (Printf.sprintf "Invalid pair value%s: %s"
+         (match var with None -> "" | Some s -> Printf.sprintf " (%s)" s)
+           (J.to_string json)
         )
     let pair env var f1 f2 = require env var (pair_of_json f1 f2)
   end
