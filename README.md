@@ -125,8 +125,8 @@ be called with `--lwt`.
 
 Special fields in JSON objects begin with an underscore:
 
-- `_type: "string"`: set the tset type to `string`,
-- `_id: "string"`: set the id of the section or the type, used in reports,
+- `_type: "string"`: set the test type to `string`,
+- `_id: "string"`: set the id of the section or the test, used in reports,
 - `_include : "file"`: include the given file, allows to separate and reuse test
     and value defininitions,
 - `_list: [ ...]`: add nodes to the given tree node,
