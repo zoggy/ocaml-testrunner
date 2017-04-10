@@ -1,6 +1,6 @@
 # ocaml-testrunner
 
-Simple framework to run tests and create test reports.
+Simple framework to run tests and create test reports for OCaml libraries.
 
 ## How it works
 
