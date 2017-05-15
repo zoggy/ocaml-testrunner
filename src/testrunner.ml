@@ -132,7 +132,7 @@ module Env =
 
 module Result =
   struct
-    type t = {
+    type single = {
         ok : bool ;
         output : string option ;
         expected: string option ;
@@ -140,9 +140,22 @@ module Result =
         xml_expected : Xtmpl_xml.tree list option ;
         xml_result : Xtmpl_xml.tree list option ;
       }
+    type listr = {
+        missing: J.json list ;
+        ok_list : t list ;
+        ko_list : t list ;
+      }
+    and t = [`Single of single | `List of listr]
 
-    let make ?output ?expected ?result ?xml_expected ?xml_result ok =
+    let single ?output ?expected ?result ?xml_expected ?xml_result ok =
       { ok ; output ; expected ; result ; xml_expected ; xml_result }
+
+    let list ?(missing=[]) ?(ok_list=[]) ?(ko_list=[]) () =
+      { missing ; ok_list ; ko_list }
+
+    let result_ok = function
+      `Single r -> r.ok
+    | `List l -> List.length l.missing = 0 && List.length l.ko_list = 0
   end
 
 module Tree =
@@ -233,7 +246,7 @@ module Tree =
       | f ->
         try
           let r = f t.env in
-          let msg = if r.ok then ok "OK" else err "Fail" in
+          let msg = if Result.result_ok r then ok "OK" else err "" in
           print (Printf.sprintf "[%s] %s" path msg);
           let result = Some (`R r) in
           { t with result }
@@ -273,7 +286,7 @@ module Tree =
       | f ->
         try%lwt
           let%lwt r = f t.env in
-          let msg = if r.ok then ok "OK" else err "Fail" in
+          let msg = if Result.result_ok r then ok "OK" else err "Fail" in
           print (Printf.sprintf "[%s] %s" path msg) >>= fun () ->
           let result = Some (`R r) in
           Lwt.return { t with result }
@@ -321,7 +334,8 @@ module Xml =
       X.node ("","test-section") ~atts subs
 
     let test ?(atts=X.atts_empty)
-      ?id ?title ?input ?expected ?result ?xml_expected ?xml_result ?output status =
+      ?id ?title ?input ?expected ?result ?xml_expected ?xml_result ?output
+      ?missing ?nb ?ko_list status =
       let atts = match id with
         | None -> atts
         | Some str -> X.atts_one ~atts ("","id") (str, None)
@@ -333,7 +347,26 @@ module Xml =
       let atts =
         X.atts_one ~atts ("","status") ((if status then "ok" else "ko"), None)
       in
+      let atts = match nb with
+        | None -> atts
+        | Some (ok,total) ->
+            X.atts_of_list ~atts
+              [ ("","ok"), (string_of_int ok, None) ;
+                ("","total"), (string_of_int total, None)]
+      in
       let subs = [] in
+      let subs = match missing with
+        | None -> subs
+        | Some l ->
+           (X.node ("","test-missing")
+             (List.map
+               (fun json -> X.node ("","code") [X.cdata (Yojson.Safe.to_string json)])
+               l)) :: subs
+      in
+      let subs = match ko_list with
+        | None -> subs
+        | Some l -> (List.rev l) @ subs
+      in
       let subs = match output with
         | None -> subs
         | Some str -> (X.node ("", "test-output") [X.cdata str]) :: subs
@@ -371,17 +404,28 @@ module Xml =
       X.node ("","test") ~atts subs
 
     let to_xml =
-      let xml_of_test t =
-        let ret = test ?id: t.id ?title: t.title in
-        match t.result with
-          Some (`R r) ->
+      let rec xml_of_result ?id ?title r =
+        let ret = test ?id ?title in
+        match r with
+          `Single r ->
             let expected = string_of_opt r.expected in
             let result = string_of_opt r.result in
             let output = string_of_opt r.output in
             let xml_expected = r.xml_expected in
             let xml_result = r.xml_result in
             ret ~expected ~result ~output ?xml_expected ?xml_result r.ok
-        | _ -> ret false
+        | `List l ->
+            let nb_bad = List.length l.missing + List.length l.ko_list in
+            let nb_ok = List.length l.ok_list in
+            let status = nb_bad = 0 in
+            let ko_list = List.map xml_of_result l.ko_list in
+            let nb = (nb_ok, nb_ok + nb_bad) in
+            ret ~missing: l.missing ~nb ~ko_list status
+      in
+      let xml_of_test t =
+        match t.Tree.result with
+        | Some (`R r) -> xml_of_result ?id:t.id ?title:t.title r
+        | _ -> test ?id:t.id ?title:t.title false
       in
       let rec iter t =
         match t.subs with
@@ -405,8 +449,17 @@ module Report =
           None -> List.fold_left iter count t.subs
         | Some r ->
             match r with
-              `R { ok = true } -> { count with ok = count.ok + 1 }
-            | `R { ok = false } -> { count with ko = count.ko + 1 }
+              `R r ->
+                let ok =
+                  match r with
+                    `Single { ok } -> ok
+                  | `List { missing ; ko_list } ->
+                    List.length missing = 0 && List.length ko_list = 0
+                in
+                if ok then
+                  { count with ok = count.ok + 1 }
+                else
+                  { count with ko = count.ko + 1 }
             | `E _ -> { count with err = count.err + 1 }
       in
       List.fold_left iter { ok = 0; ko = 0; err = 0 }
@@ -436,20 +489,37 @@ module Report =
          Buffer.add_string b (string_of_opt str_opt) ;
          Buffer.add_string b "\n"
 
+      let rec print_result b margin = function
+        `Single r ->
+          print_field b margin "expected" r.expected ;
+          print_field b margin "  result" r.result ;
+          if r.output <> None then print_field b margin "  output" r.output
+      | `List l ->
+          let s = Printf.sprintf "%d/%d"
+            (List.length l.ok_list)
+            (List.(length l.ok_list + length l.missing + length l.ko_list))
+          in
+          pb b "%ssuccess: %s\n" margin s;
+          pb b "%smissing:\n" margin ;
+          let margin2 = margin^"  " in
+          List.iter
+            (fun json -> pb b "%s- %s\n" margin2 (Yojson.Safe.to_string json))
+            l.missing;
+          pb b "%sfailures:\n" margin ;
+          List.iter (print_result b margin2) l.ko_list
+
       let print_test b margin path t =
         pb b "%sTest %s: " margin (string_of_path (List.rev path)) ;
         match t.Tree.result with
-          Some (`R { Result.ok = true }) ->
-                pb b "%s" "OK\n"
+        | Some (`R r) when result_ok r ->
+            pb b "%s" "OK\n"
         | Some (`R r) ->
-                pb b "%s" "Fail\n";
-                let margin = margin ^ "  " in
-                print_field b margin "expected" r.expected ;
-                print_field b margin "  result" r.result ;
-                if r.output <> None then print_field b margin "  output" r.output ;
+            pb b "%s" "Fail\n";
+            let margin = margin ^ "  " in
+            print_result b margin r
         | Some (`E e) ->
-                pb b "%s" "Fail with exception\n" ;
-                pb b "%s%s\n" margin (Error.to_string (Error.Exception_in_test e)) ;
+            pb b "%s" "Fail with exception\n" ;
+            pb b "%s%s\n" margin (Error.to_string (Error.Exception_in_test e)) ;
         | None -> ()
 
       let print b =

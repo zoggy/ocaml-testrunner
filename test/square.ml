@@ -18,10 +18,10 @@ let square env =
   let res = buggy_square ?foo x in
   (* build the result, by comparing expected result and obtained value, *)
   (* and provide string representations of value for reports *)
-  Result.make
+  `Single (Result.single
     ~expected: (string_of_int expected)
     ~result: (string_of_int res)
-    (res = expected)
+    (res = expected))
 ;;
 
 (* Register our test type *)

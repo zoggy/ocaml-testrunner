@@ -70,7 +70,7 @@ module Env :
   end
 module Result :
   sig
-    type t = {
+    type single = {
         ok : bool;
         output : string option;
         expected : string option;
@@ -78,11 +78,22 @@ module Result :
         xml_expected : Xtmpl_xml.tree list option ;
         xml_result : Xtmpl_xml.tree list option ;
     }
-    val make :
+    type listr = {
+        missing: J.json list ;
+        ok_list : t list ;
+        ko_list : t list ;
+      }
+    and t = [`Single of single | `List of listr]
+    val single :
       ?output:string -> ?expected:string -> ?result:string ->
         ?xml_expected:Xtmpl_xml.tree list ->
-        ?xml_result:Xtmpl_xml.tree list -> bool -> t
+        ?xml_result:Xtmpl_xml.tree list -> bool -> single
+    val list :
+      ?missing:J.json list ->
+         ?ok_list: t list -> ?ko_list: t list -> unit -> listr
+    val result_ok : t -> bool
   end
+
 module Tree :
   sig
     type t = {
@@ -144,7 +155,9 @@ module Xml :
       ?expected:string -> ?result:string ->
       ?xml_expected:Xtmpl_xml.tree list ->
       ?xml_result:Xtmpl_xml.tree list ->
-      ?output:string -> bool -> X.tree
+      ?output:string ->
+      ?missing:Yojson.Safe.json list ->
+      ?nb:int * int -> ?ko_list:X.tree list -> bool -> X.tree
     val to_xml : Tree.t list -> X.tree list
   end
 module Report :
