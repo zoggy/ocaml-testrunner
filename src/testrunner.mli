@@ -68,9 +68,10 @@ module Env :
       (?var:string -> J.json -> 'a) ->
         (?var:string -> J.json -> 'b) -> 'a *'b
   end
-module Result :
+
+module Tree :
   sig
-    type single = {
+    type single_r = {
         ok : bool;
         output : string option;
         expected : string option;
@@ -78,33 +79,34 @@ module Result :
         xml_expected : Xtmpl_xml.tree list option ;
         xml_result : Xtmpl_xml.tree list option ;
     }
-    type listr = {
+    type list_r = {
         missing: J.json list ;
         ok_list : t list ;
         ko_list : t list ;
       }
-    and t = [`Single of single | `List of listr]
-    val single :
-      ?output:string -> ?expected:string -> ?result:string ->
-        ?xml_expected:Xtmpl_xml.tree list ->
-        ?xml_result:Xtmpl_xml.tree list -> bool -> single
-    val list :
-      ?missing:J.json list ->
-         ?ok_list: t list -> ?ko_list: t list -> unit -> listr
-    val result_ok : t -> bool
-  end
+    and result = [`Single of single_r | `List of list_r]
 
-module Tree :
-  sig
-    type t = {
+    and t = {
       typ : string option;
       title : string option;
       id : string option;
       env : Env.t;
       subs : t list;
-      result : [ `E of exn | `R of Result.t ] option;
+      result : [ `E of exn | `R of result ] option;
     }
     val empty : t
+    val t : ?typ:string -> ?title:string -> ?id:string ->
+      ?subs:t list -> ?result:  [ `E of exn | `R of result ] ->
+        ?env:Env.t -> unit -> t
+
+    val single_r :
+      ?output:string -> ?expected:string -> ?result:string ->
+        ?xml_expected:Xtmpl_xml.tree list ->
+        ?xml_result:Xtmpl_xml.tree list -> bool -> single_r
+    val list_r :
+      ?missing:J.json list ->
+         ?ok_list: t list -> ?ko_list: t list -> unit -> list_r
+    val result_ok : result -> bool
     val of_json : t -> J.json -> t list
     val of_assoc : t -> (string * J.json) list -> t
     val of_file : ?t:t -> string -> t list
@@ -112,9 +114,9 @@ module Tree :
     val run_test :
       print:(string -> unit) ->
       ok:(string -> string) ->
-      err:(string -> string) -> (Env.t -> Result.t) SMap.t -> string -> t -> t
+      err:(string -> string) -> (Env.t -> result) SMap.t -> string -> t -> t
     val run :
-      (Env.t -> Result.t) SMap.t ->
+      (Env.t -> result) SMap.t ->
       ?print:(string -> unit) ->
       ?ok:(string -> string) ->
       ?err:(string -> string) -> ?re:Re_str.regexp -> t -> t
@@ -122,15 +124,15 @@ module Tree :
       ?print:(string -> unit) ->
       ?ok:(string -> string) ->
       ?err:(string -> string) ->
-      ?re:Re_str.regexp -> (Env.t -> Result.t) SMap.t -> t list -> t list
+      ?re:Re_str.regexp -> (Env.t -> result) SMap.t -> t list -> t list
 
     val lwt_run_test :
       print:(string -> unit Lwt.t) ->
       ok:(string -> string) ->
       err:(string -> string) ->
-      (Env.t -> Result.t Lwt.t) SMap.t -> string -> t -> t Lwt.t
+      (Env.t -> result Lwt.t) SMap.t -> string -> t -> t Lwt.t
     val lwt_run :
-      (Env.t -> Result.t Lwt.t) SMap.t ->
+      (Env.t -> result Lwt.t) SMap.t ->
       ?print:(string -> unit Lwt.t) ->
       ?ok:(string -> string) ->
       ?err:(string -> string) -> ?re:Re_str.regexp -> t -> t Lwt.t
@@ -139,7 +141,7 @@ module Tree :
       ?ok:(string -> string) ->
       ?err:(string -> string) ->
       ?re:Re_str.regexp ->
-      (Env.t -> Result.t Lwt.t) SMap.t -> t list -> t list Lwt.t
+      (Env.t -> result Lwt.t) SMap.t -> t list -> t list Lwt.t
   end
 module Xml :
   sig

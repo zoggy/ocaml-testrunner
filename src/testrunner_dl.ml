@@ -26,8 +26,8 @@ open Testrunner
 
 let () = Dynlink.allow_unsafe_modules true
 
-let handlers = ref (SMap.empty : (Env.t -> Result.t) SMap.t)
-let lwt_handlers = ref (SMap.empty : (Env.t -> Result.t Lwt.t) SMap.t)
+let handlers = ref (SMap.empty : (Env.t -> Tree.result) SMap.t)
+let lwt_handlers = ref (SMap.empty : (Env.t -> Tree.result Lwt.t) SMap.t)
 
 let add_handler name f =
   handlers := SMap.add name f !handlers

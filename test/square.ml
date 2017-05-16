@@ -18,7 +18,7 @@ let square env =
   let res = buggy_square ?foo x in
   (* build the result, by comparing expected result and obtained value, *)
   (* and provide string representations of value for reports *)
-  `Single (Result.single
+  `Single (Tree.single_r
     ~expected: (string_of_int expected)
     ~result: (string_of_int res)
     (res = expected))

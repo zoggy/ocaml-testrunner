@@ -129,10 +129,9 @@ module Env =
     let pair env var f1 f2 = require env var (pair_of_json f1 f2)
   end
 
-
-module Result =
+module Tree =
   struct
-    type single = {
+    type single_r = {
         ok : bool ;
         output : string option ;
         expected: string option ;
@@ -140,40 +139,35 @@ module Result =
         xml_expected : Xtmpl_xml.tree list option ;
         xml_result : Xtmpl_xml.tree list option ;
       }
-    type listr = {
+    type list_r = {
         missing: J.json list ;
         ok_list : t list ;
         ko_list : t list ;
       }
-    and t = [`Single of single | `List of listr]
-
-    let single ?output ?expected ?result ?xml_expected ?xml_result ok =
-      { ok ; output ; expected ; result ; xml_expected ; xml_result }
-
-    let list ?(missing=[]) ?(ok_list=[]) ?(ko_list=[]) () =
-      { missing ; ok_list ; ko_list }
-
-    let result_ok = function
-      `Single r -> r.ok
-    | `List l -> List.length l.missing = 0 && List.length l.ko_list = 0
-  end
-
-module Tree =
-  struct
-    type t = {
+    and result = [`Single of single_r | `List of list_r]
+    and t = {
         typ: string option ;
         title: string option ;
         id: string option ;
         env: Env.t ;
         subs: t list ;
-        result: [`R of Result.t | `E of exn] option ;
+        result: [`R of result | `E of exn] option ;
       }
 
-    let empty =
-      { typ = None ; title = None ; id = None ;
-        env = SMap.empty ; subs = [] ;
-        result = None ;
-      }
+    let t ?typ ?title ?id ?(subs=[]) ?result ?(env=SMap.empty) () =
+      { typ ; title ; id ; subs ; result ; env }
+
+    let empty = t ()
+
+    let single_r ?output ?expected ?result ?xml_expected ?xml_result ok =
+      { ok ; output ; expected ; result ; xml_expected ; xml_result }
+
+    let list_r ?(missing=[]) ?(ok_list=[]) ?(ko_list=[]) () =
+      { missing ; ok_list ; ko_list }
+
+    let result_ok = function
+      `Single r -> r.ok
+    | `List l -> List.length l.missing = 0 && List.length l.ko_list = 0
 
     let rec of_json t = function
       `Assoc l -> [of_assoc t l]
@@ -246,7 +240,7 @@ module Tree =
       | f ->
         try
           let r = f t.env in
-          let msg = if Result.result_ok r then ok "OK" else err "" in
+          let msg = if result_ok r then ok "OK" else err "" in
           print (Printf.sprintf "[%s] %s" path msg);
           let result = Some (`R r) in
           { t with result }
@@ -286,7 +280,7 @@ module Tree =
       | f ->
         try%lwt
           let%lwt r = f t.env in
-          let msg = if Result.result_ok r then ok "OK" else err "Fail" in
+          let msg = if result_ok r then ok "OK" else err "Fail" in
           print (Printf.sprintf "[%s] %s" path msg) >>= fun () ->
           let result = Some (`R r) in
           Lwt.return { t with result }
@@ -315,6 +309,7 @@ module Tree =
 
     let lwt_run_list ?print ?ok ?err ?re handlers =
       Lwt_list.map_p (lwt_run ?print ?ok ?err ?re handlers)
+
   end
 
 module Xml =
@@ -418,11 +413,10 @@ module Xml =
             let nb_bad = List.length l.missing + List.length l.ko_list in
             let nb_ok = List.length l.ok_list in
             let status = nb_bad = 0 in
-            let ko_list = List.map xml_of_result l.ko_list in
+            let ko_list = List.map xml_of_test l.ko_list in
             let nb = (nb_ok, nb_ok + nb_bad) in
             ret ~missing: l.missing ~nb ~ko_list status
-      in
-      let xml_of_test t =
+      and xml_of_test t =
         match t.Tree.result with
         | Some (`R r) -> xml_of_result ?id:t.id ?title:t.title r
         | _ -> test ?id:t.id ?title:t.title false
@@ -489,7 +483,7 @@ module Report =
          Buffer.add_string b (string_of_opt str_opt) ;
          Buffer.add_string b "\n"
 
-      let rec print_result b margin = function
+      let rec print_result b margin path = function
         `Single r ->
           print_field b margin "expected" r.expected ;
           print_field b margin "  result" r.result ;
@@ -506,9 +500,9 @@ module Report =
             (fun json -> pb b "%s- %s\n" margin2 (Yojson.Safe.to_string json))
             l.missing;
           pb b "%sfailures:\n" margin ;
-          List.iter (print_result b margin2) l.ko_list
+          List.iter (print_test b margin2 path) l.ko_list
 
-      let print_test b margin path t =
+      and print_test b margin path t =
         pb b "%sTest %s: " margin (string_of_path (List.rev path)) ;
         match t.Tree.result with
         | Some (`R r) when result_ok r ->
@@ -516,7 +510,7 @@ module Report =
         | Some (`R r) ->
             pb b "%s" "Fail\n";
             let margin = margin ^ "  " in
-            print_result b margin r
+            print_result b margin path r
         | Some (`E e) ->
             pb b "%s" "Fail with exception\n" ;
             pb b "%s%s\n" margin (Error.to_string (Error.Exception_in_test e)) ;
