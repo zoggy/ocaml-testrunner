@@ -52,3 +52,7 @@ let lwt_handlers () = !lwt_handlers
 let options = ref []
 
 let add_option o = options := !options @ [o]
+
+let initializers = ref []
+let add_initializer f = initializers := f :: !initializers
+let initializers () = List.rev !initializers

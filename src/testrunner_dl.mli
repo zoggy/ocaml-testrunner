@@ -40,3 +40,6 @@ val load :
 val options : (Arg.key * Arg.spec * Arg.doc) list ref
 
 val add_option : (Arg.key * Arg.spec * Arg.doc) -> unit
+
+val add_initializer : (unit -> unit) -> unit
+val initializers : unit -> (unit -> unit) list

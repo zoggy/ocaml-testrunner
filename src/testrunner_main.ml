@@ -51,6 +51,8 @@ let lwt_run handlers trees =
   let (ok, err) = color_funs_of_channel Unix.stderr in
   Tree.lwt_run_list ~print ~ok ~err handlers trees
 
+let init () = List.iter (fun f -> f ()) (Testrunner_dl.initializers ())
+
 let plugin_files = ref []
 
 type report_mode = Count | Xml | Text
@@ -132,6 +134,7 @@ let main () =
         in
         List.iter (Testrunner_dl.load ~print)
           (List.rev !plugin_files);
+        init () ;
         let trees = List.flatten (List.map Tree.of_file files) in
         let trees =
           match !lwt with
