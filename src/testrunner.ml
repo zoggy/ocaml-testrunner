@@ -169,6 +169,13 @@ module Tree =
       `Single r -> r.ok
     | `List l -> List.length l.missing = 0 && List.length l.ko_list = 0
 
+    let string_of_success_rate = function
+      `Single _ -> ""
+    | `List l ->
+        Printf.sprintf " (%d/%d)"
+          (List.length l.ok_list)
+          (List.(length l.ok_list + length l.missing + length l.ko_list))
+
     let rec of_json t = function
       `Assoc l -> [of_assoc t l]
     | `List l -> List.flatten (List.map (of_json t) l)
@@ -237,18 +244,22 @@ module Tree =
       | Some typ ->
           match SMap.find typ handlers with
           | exception Not_found -> Error.unhandled_type typ
-      | f ->
-        try
-          let r = f t.env in
-          let msg = if result_ok r then ok "OK" else err "" in
-          print (Printf.sprintf "[%s] %s" path msg);
-          let result = Some (`R r) in
-          { t with result }
-        with
-          e ->
-            print (Printf.sprintf "[%s] %s" path
-              (err (Error.to_string (Error.Exception_in_test e)))) ;
-            { t with result = Some (`E e) }
+          | f ->
+            try
+             let r = f t.env in
+             let msg = if result_ok r then
+                ok (Printf.sprintf "OK%s" (string_of_success_rate r))
+              else
+                err (Printf.sprintf "Fail%s" (string_of_success_rate r))
+            in
+            print (Printf.sprintf "[%s] %s" path msg);
+            let result = Some (`R r) in
+            { t with result }
+          with
+            e ->
+              print (Printf.sprintf "[%s] %s" path
+                (err (Error.to_string (Error.Exception_in_test e)))) ;
+              { t with result = Some (`E e) }
 
     let run handlers ?(print=fun _ -> ())
       ?(ok=fun s -> s) ?(err=fun s -> s) ?(re=Re_str.regexp ".*") t =
@@ -280,7 +291,11 @@ module Tree =
       | f ->
         try%lwt
           let%lwt r = f t.env in
-          let msg = if result_ok r then ok "OK" else err "Fail" in
+          let msg = if result_ok r then
+              ok (Printf.sprintf "OK%s" (string_of_success_rate r))
+            else
+              err (Printf.sprintf "Fail%s" (string_of_success_rate r))
+          in
           print (Printf.sprintf "[%s] %s" path msg) >>= fun () ->
           let result = Some (`R r) in
           Lwt.return { t with result }
@@ -351,15 +366,15 @@ module Xml =
       in
       let subs = [] in
       let subs = match missing with
-        | None -> subs
+        | None | Some [] -> subs
         | Some l ->
            (X.node ("","test-missing")
              (List.map
-               (fun json -> X.node ("","code") [X.cdata (Yojson.Safe.to_string json)])
+               (fun json -> X.node ("","test-missing-case") [X.cdata (Yojson.Safe.to_string json)])
                l)) :: subs
       in
       let subs = match ko_list with
-        | None -> subs
+        | None | Some [] -> subs
         | Some l -> (List.rev l) @ subs
       in
       let subs = match output with
@@ -489,26 +504,33 @@ module Report =
           print_field b margin "  result" r.result ;
           if r.output <> None then print_field b margin "  output" r.output
       | `List l ->
-          let s = Printf.sprintf "%d/%d"
-            (List.length l.ok_list)
-            (List.(length l.ok_list + length l.missing + length l.ko_list))
-          in
-          pb b "%ssuccess: %s\n" margin s;
-          pb b "%smissing:\n" margin ;
           let margin2 = margin^"  " in
-          List.iter
-            (fun json -> pb b "%s- %s\n" margin2 (Yojson.Safe.to_string json))
-            l.missing;
-          pb b "%sfailures:\n" margin ;
-          List.iter (print_test b margin2 path) l.ko_list
+          (match l.missing with
+          | [] -> ()
+          | _ ->
+            pb b "%smissing:\n" margin ;
+            List.iter
+              (fun json -> pb b "%s- %s\n" margin2 (Yojson.Safe.to_string json))
+              l.missing
+          );
+          (match l.ko_list with
+          | [] -> ()
+          | _ ->
+             pb b "%sfailures:\n" margin ;
+             List.iter (fun t ->
+               let path = match t.id with None -> path | Some i -> i :: path in
+               print_test b margin2 path t
+               )
+               l.ko_list
+          )
 
       and print_test b margin path t =
         pb b "%sTest %s: " margin (string_of_path (List.rev path)) ;
         match t.Tree.result with
         | Some (`R r) when result_ok r ->
-            pb b "%s" "OK\n"
+            pb b "OK%s\n" (Tree.string_of_success_rate r)
         | Some (`R r) ->
-            pb b "%s" "Fail\n";
+            pb b "Fail%s\n" (Tree.string_of_success_rate r);
             let margin = margin ^ "  " in
             print_result b margin path r
         | Some (`E e) ->
